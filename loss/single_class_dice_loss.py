@@ -29,7 +29,7 @@ class SingleClassDiceLoss(nn.Module):
         intersection = (predictions * targets).sum(1)
         union = predictions.sum(1) + targets.sum(1)
 
-        score = 2. * (intersection + epsilon) / (union + epsilon)
+        score = 2. * intersection / (union + epsilon)
         loss = 1 - score.sum() / batch_size
 
         log_message = 'batch_size: {}, m_foreground: {:<8d}, m_background: {:<8d}, m_I: {:<8d}, m_U: {:<8d}, loss: {:.4f}'.format(

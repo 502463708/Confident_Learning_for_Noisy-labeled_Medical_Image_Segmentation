@@ -5,7 +5,7 @@ import os
 import shutil
 
 from config.config_confident_learning_pixel_level_classification import cfg
-from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
+from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
 from torch.utils.data import DataLoader
 
 
@@ -14,7 +14,7 @@ def ParseArguments():
 
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data1/minqing/results/segTHOR-dataset-test/',
+                        default='/data1/minqing/results/JRST-dataset-test/',
                         help='Destination data dir.')
 
     parser.add_argument('--mode',
@@ -49,16 +49,17 @@ def ParseArguments():
     return args
 
 
-def MicroCalcificationPatchLevelDatasetTest(args):
+def ConfidentLearningDataset2dTest(args):
     # create dataset
-    dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                        mode=args.mode,
-                                        enable_random_sampling=False,
-                                        image_channels=cfg.dataset.image_channels,
-                                        cropping_size=cfg.dataset.cropping_size,
-                                        enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
-                                        enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
-                                        enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
+    dataset = ConfidentLearningDataset2d(data_root_dir=cfg.general.data_root_dir,
+                                         mode=args.mode,
+                                         class_name=cfg.dataset.class_name,
+                                         enable_random_sampling=False,
+                                         image_channels=cfg.dataset.image_channels,
+                                         cropping_size=cfg.dataset.cropping_size,
+                                         enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
+                                         enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
+                                         enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
 
     # create data loader for training
     data_loader = DataLoader(dataset,
@@ -98,7 +99,7 @@ def MicroCalcificationPatchLevelDatasetTest(args):
                 image_np = image_np.astype(np.uint8)
 
                 pixel_level_label_np = pixel_level_label_np.astype(np.float)
-                pixel_level_label_np *= 255 / 4
+                pixel_level_label_np *= 255
                 pixel_level_label_np = pixel_level_label_np.astype(np.uint8)
 
                 cv2.imwrite(os.path.join(output_dir_batch, filename), image_np)
@@ -119,4 +120,4 @@ def MicroCalcificationPatchLevelDatasetTest(args):
 if __name__ == '__main__':
     args = ParseArguments()
 
-    MicroCalcificationPatchLevelDatasetTest(args)
+    ConfidentLearningDataset2dTest(args)

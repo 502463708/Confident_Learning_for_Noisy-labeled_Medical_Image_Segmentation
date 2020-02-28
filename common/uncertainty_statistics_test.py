@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 
 from common.utils import get_net_list, generate_uncertainty_maps
 from config.config_micro_calcification_patch_level_reconstruction import cfg
-from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
+from dataset.dataset_confident_learning_2d import MicroCalcificationDataset
 from logger.logger import Logger
 from metrics.metrics_patch_level_reconstruction import MetricsReconstruction
 from net.vnet2d_v2 import VNet2d

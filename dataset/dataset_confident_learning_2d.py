@@ -2,15 +2,12 @@ import cv2
 import numpy as np
 import os
 import random
-import SimpleITK as sitk
 import torch
 
-from common.utils import dilate_image_level_label
-from skimage import measure
 from torch.utils.data import Dataset
 
 
-def generate_and_check_filename_list(dataset_type_dir):
+def generate_and_check_filename_list(dataset_type_dir, class_name):
     # check the correctness of the given path
     assert os.path.isdir(dataset_type_dir)
 
@@ -18,7 +15,7 @@ def generate_and_check_filename_list(dataset_type_dir):
     print('Starting checking the files in {0}...'.format(dataset_type_dir))
 
     image_dir = os.path.join(dataset_type_dir, 'images')
-    label_dir = os.path.join(dataset_type_dir, 'labels')
+    label_dir = os.path.join(dataset_type_dir, class_name)
 
     assert os.path.isdir(image_dir)
     assert os.path.isdir(label_dir)
@@ -30,7 +27,7 @@ def generate_and_check_filename_list(dataset_type_dir):
         assert filename.split('.')[-1] == 'png'
 
         assert os.path.exists(os.path.join(image_dir, filename))
-        assert os.path.exists(os.path.join(label_dir, filename.replace('png', 'npy')))
+        assert os.path.exists(os.path.join(label_dir, filename))
 
     print('Checking passed: all of the involved {} files are legal with extension.'.format(len(filename_list)))
     print('-------------------------------------------------------------------------------------------------------')
@@ -38,11 +35,11 @@ def generate_and_check_filename_list(dataset_type_dir):
     return filename_list
 
 
-class MicroCalcificationDataset(Dataset):
-    def __init__(self, data_root_dir, mode, enable_random_sampling, image_channels, cropping_size,
+class ConfidentLearningDataset2d(Dataset):
+    def __init__(self, data_root_dir, mode, class_name, enable_random_sampling, image_channels, cropping_size,
                  enable_data_augmentation, enable_vertical_flip=False, enable_horizontal_flip=False):
 
-        super(MicroCalcificationDataset, self).__init__()
+        super(ConfidentLearningDataset2d, self).__init__()
 
         # the data root path must exist
         assert os.path.isdir(data_root_dir)
@@ -50,6 +47,10 @@ class MicroCalcificationDataset(Dataset):
         # the mode must be one of 'training', 'validation' or 'test'
         assert mode in ['training', 'validation', 'test']
         self.mode = mode
+
+        # the class_name must be one of 'clavicle', 'heart' or 'lung'
+        assert class_name in ['clavicle', 'heart', 'lung']
+        self.class_name = class_name
 
         # enable_random_sampling must be a bool variable
         assert isinstance(enable_random_sampling, bool)
@@ -79,7 +80,7 @@ class MicroCalcificationDataset(Dataset):
         self.dataset_type_dir = os.path.join(data_root_dir, self.mode)
 
         # the image filename list
-        self.filename_list = generate_and_check_filename_list(self.dataset_type_dir)
+        self.filename_list = generate_and_check_filename_list(self.dataset_type_dir, self.class_name)
 
         return
 
@@ -98,7 +99,7 @@ class MicroCalcificationDataset(Dataset):
         image_path = os.path.join(self.dataset_type_dir, 'images', filename)
 
         # get the corresponding pixel-level label path
-        pixel_level_label_path = image_path.replace('images', 'labels').replace('png', 'npy')
+        pixel_level_label_path = image_path.replace('images', self.class_name)
 
         # check the existence of the sampled patch
         assert os.path.exists(image_path)
@@ -114,8 +115,9 @@ class MicroCalcificationDataset(Dataset):
         image_np /= 255.0
 
         # load pixel-level label
-        pixel_level_label_np = np.load(pixel_level_label_path, cv2.IMREAD_GRAYSCALE)
+        pixel_level_label_np = cv2.imread(pixel_level_label_path, cv2.IMREAD_GRAYSCALE)
         pixel_level_label_np = pixel_level_label_np.astype(np.float)
+        pixel_level_label_np /= 255.0
 
         # check the consistency of size between image, its pixel-level label
         assert image_np.shape == pixel_level_label_np.shape

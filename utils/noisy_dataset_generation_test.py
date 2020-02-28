@@ -1,9 +1,10 @@
 import argparse
+import cv2
 import os
+import random
 import shutil
 
 from logger.logger import Logger
-from utils.patch_level_sub_dataset_generation import get_sub_dataset_filename_list, copy_data_from_src_2_dst
 
 
 def ParseArguments():
@@ -41,40 +42,30 @@ def ParseArguments():
     return args
 
 
-def TestPatchLevelSubDatasetGeneration(args):
+def TestNoisyDatasetGeneration(args):
     # set up logger
     logger = Logger(args.dst_data_root_dir)
 
-    # calculate sub_dataset_number based on src_radiograph_level_sub_datasets_root_dir
-    sub_dataset_number = len([lists for lists in os.listdir(args.src_radiograph_level_sub_datasets_root_dir) if
-                              os.path.isdir(os.path.join(args.src_radiograph_level_sub_datasets_root_dir, lists))])
+    training_image_dir = os.path.join(args.dst_data_root_dir, 'training', 'images')
+    filename_list = os.listdir(training_image_dir)
+    noisy_data_num = int(len(filename_list) * args.alpha)
 
-    for patch_type in ['positive_patches', 'negative_patches']:
+    for label_class_name in args.label_class_name_list:
+        random.shuffle(filename_list)
+        noisy_filename_list = filename_list[:noisy_data_num]
 
-        for dataset_type in ['training', 'validation', 'test']:
+        for noisy_filename in noisy_filename_list:
+            src_label_path = os.path.join(args.dst_data_root_dir, 'training', label_class_name, noisy_filename)
+            src_label_np = cv2.imread(src_label_path, cv2.IMREAD_GRAYSCALE)
 
-            for sub_dataset_idx in range(sub_dataset_number):
-                sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
+            dst_label_np = add_noisy(src_label_np, args.beta)
 
-                src_patch_level_dataset_type_dir = os.path.join(args.src_patch_level_data_root_dir, patch_type,
-                                                                dataset_type)
-                src_radiograph_level_dataset_type_dir = os.path.join(args.src_radiograph_level_sub_datasets_root_dir,
-                                                                     sub_dataset_name, dataset_type)
-                dst_patch_level_dataset_type_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name, patch_type,
-                                                                dataset_type)
+            cv2.imwrite(src_label_path, dst_label_np)
 
-                sub_patch_level_filename_list = get_sub_dataset_filename_list(src_patch_level_dataset_type_dir,
-                                                                              src_radiograph_level_dataset_type_dir,
-                                                                              patch_type, dataset_type, sub_dataset_idx,
-                                                                              logger=None)
-
-                copy_data_from_src_2_dst(src_patch_level_dataset_type_dir, dst_patch_level_dataset_type_dir,
-                                         sub_patch_level_filename_list, sub_dataset_idx,
-                                         dataset_type, patch_type, logger=logger)
     return
 
 
 if __name__ == '__main__':
     args = ParseArguments()
 
-    TestPatchLevelSubDatasetGeneration(args)
+    TestNoisyDatasetGeneration(args)
