@@ -1,0 +1,11 @@
+
+*.xml
+*.iml
+*.pyc
+*.swp
+
+venv/*
+.idea/*
+.pytest_cache/*
+
+nohup.out

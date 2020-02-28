@@ -8,48 +8,35 @@ from utils.patch_level_sub_dataset_generation import get_sub_dataset_filename_li
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src_patch_level_data_root_dir',
+    parser.add_argument('--src_data_root_dir',
                         type=str,
                         default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
-                        help='Source dir of patch-level pos-2-neg ratio 1:1 dataset.')
-    parser.add_argument('--src_radiograph_level_sub_datasets_root_dir',
-                        type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-radiograph-level-roi-extracted-data-split-sub-datasets/',
-                        help='Source dir of radiograph-level sub datasets.')
+                        help='Source dir of dataset.')
+    parser.add_argument('--alpha',
+                        type=float,
+                        default=0.05,
+                        help='The ratio of data to be deteriorated with noisy.')
+    parser.add_argument('--beta',
+                        type=float,
+                        default=0.2,
+                        help='The degree of label to be deteriorated.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-sub-datasets/',
-                        help='Destination data dir.')
+                        default='/data/lars/data/Inbreast-microcalcification-datasets-5764-uCs-20191107/Inbreast-patch-level-split-pos2neg-ratio-1-dataset/',
+                        help='Destination dir of dataset.')
+    parser.add_argument('--label_class_name_list',
+                        type=list,
+                        default=['clavicle', 'heart', 'lung'],
+                        help='Destination dir of dataset.')
 
     args = parser.parse_args()
 
-    assert os.path.exists(args.src_patch_level_data_root_dir), \
-        'Source data root dir does not exist: {}.'.format(args.src_patch_level_data_root_dir)
-    assert os.path.exists(args.src_radiograph_level_sub_datasets_root_dir), \
-        'Source data root dir does not exist: {}.'.format(args.src_radiograph_level_sub_datasets_root_dir)
+    assert os.path.exists(args.src_data_root_dir), \
+        'Source data root dir does not exist: {}.'.format(args.src_data_root_dir)
 
     if os.path.exists(args.dst_data_root_dir):
         shutil.rmtree(args.dst_data_root_dir)
-    os.mkdir(args.dst_data_root_dir)
-
-    # calculate sub_dataset_number based on src_radiograph_level_sub_datasets_root_dir
-    sub_dataset_number = len([lists for lists in os.listdir(args.src_radiograph_level_sub_datasets_root_dir) if
-                              os.path.isdir(os.path.join(args.src_radiograph_level_sub_datasets_root_dir, lists))])
-
-    for sub_dataset_idx in range(sub_dataset_number):
-        sub_dataset_name = 'sub-dataset-{}'.format(sub_dataset_idx + 1)
-        sub_dataset_dir = os.path.join(args.dst_data_root_dir, sub_dataset_name)
-        os.mkdir(sub_dataset_dir)
-
-        for patch_type in ['positive_patches', 'negative_patches']:
-            patch_type_dir = os.path.join(sub_dataset_dir, patch_type)
-            os.mkdir(patch_type_dir)
-
-            for dataset_type in ['training', 'validation', 'test']:
-                dataset_type_dir = os.path.join(patch_type_dir, dataset_type)
-                os.mkdir(dataset_type_dir)
-                os.mkdir(os.path.join(dataset_type_dir, 'images'))
-                os.mkdir(os.path.join(dataset_type_dir, 'labels'))
+    shutil.copytree(args.src_data_root_dir, args.dst_data_root_dir)
 
     return args
 

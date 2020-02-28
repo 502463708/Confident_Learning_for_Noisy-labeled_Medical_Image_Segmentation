@@ -6,10 +6,9 @@ import torch
 import torch.backends.cudnn as cudnn
 import visdom
 
-from common.utils import extract_classification_preds_channel
 from common.utils import save_best_ckpt
-from config.config_micro_calcification_pixel_level_classification import cfg
-from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
+from config.config_confident_learning_pixel_level_classification import cfg
+from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from logger.logger import Logger
 from loss.cross_entropy_loss import CrossEntropyLoss
@@ -46,17 +45,13 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     loss_for_each_batch_list = list()
 
     # these variable is created for recording the annotated calcifications,
-    # recalled calcifications and false positive calcifications
-    calcification_num_epoch_level = 0
-    recall_num_epoch_level = 0
-    FP_num_epoch_level = 0
+    dice_epoch_level = list()
 
     # start time of this epoch
     start_time_for_epoch = time()
 
     # iterating through each batch
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, pixel_level_labels_dilated_tensor, _,
-                    image_level_labels_tensor, _, _) in enumerate(data_loader):
+    for batch_idx, (images_tensor, pixel_level_labels_tensor, _) in enumerate(data_loader):
 
         # start time of this batch
         start_time_for_batch = time()
@@ -69,7 +64,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
         # calculate loss of this batch
         if loss_func.get_name() == 'CrossEntropyLoss':
-            loss = loss_func(predictions_tensor, pixel_level_labels_dilated_tensor)
+            loss = loss_func(predictions_tensor, pixel_level_labels_tensor)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -79,15 +74,10 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
             loss.backward()
             optimizer.step()
 
-        # extract the 1-st channel from classification results
-        predictions_tensor = extract_classification_preds_channel(predictions_tensor, 1)
-
         # metrics
-        post_process_results_np, calcification_num_batch_level, recall_num_batch_level, FP_num_batch_level = \
+        post_process_results_np, dice_batch_level = \
             metrics.metric_batch_level(predictions_tensor, pixel_level_labels_tensor)
-        calcification_num_epoch_level += calcification_num_batch_level
-        recall_num_epoch_level += recall_num_batch_level
-        FP_num_epoch_level += FP_num_batch_level
+        dice_epoch_level.append(dice_batch_level)
 
         # print logging information
         if logger is not None:
@@ -104,38 +94,30 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
                     opts=dict(title='I{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    predictions_tensor,
-                    win='CR{}'.format('T' if training else 'V'),
+                    np.expand_dims(post_process_results_np.astype(np.float64), axis=1),
+                    win='O{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='CR{}'.format('T' if training else 'V'))
+                    opts=dict(title='O{}'.format('T' if training else 'V'))
                 )
                 visdom_obj.images(
-                    np.expand_dims(post_process_results_np, axis=1),
-                    win='PCR{}'.format('T' if training else 'V'),
+                    (pixel_level_labels_tensor.float()).unsqueeze(dim=1),
+                    win='L{}'.format('T' if training else 'V'),
                     nrow=1,
-                    opts=dict(title='PCR{}'.format('T' if training else 'V'))
-                )
-                visdom_obj.images(
-                    pixel_level_labels_tensor.unsqueeze(dim=1),
-                    win='PL{}'.format('T' if training else 'V'),
-                    nrow=1,
-                    opts=dict(title='PL{}'.format('T' if training else 'V'))
-                )
-                visdom_obj.images(
-                    pixel_level_labels_dilated_tensor.unsqueeze(dim=1),
-                    win='PLD{}'.format('T' if training else 'V'),
-                    nrow=1,
-                    opts=dict(title='PLD{}'.format('T' if training else 'V'))
+                    opts=dict(title='L{}'.format('T' if training else 'V'))
                 )
             except BaseException as err:
                 print('Error message: ', err)
+
+    dice_epoch_level = np.array(dice_epoch_level)
+    dice_class_epoch_level = dice_epoch_level.mean(axis=0)
+    dice_total_epoch_level = dice_class_epoch_level.mean()
 
     # calculate loss of this epoch
     average_loss_of_this_epoch = np.array(loss_for_each_batch_list).mean()
 
     # record metric on validation set for determining the best model to be saved
     if not training:
-        metrics.determine_saving_metric_on_validation_list.append(recall_num_epoch_level - FP_num_epoch_level)
+        metrics.determine_saving_metric_on_validation_list.append(dice_total_epoch_level)
 
     if logger is not None:
         logger.write('{} of epoch {} finished'.format('training' if training else 'evaluating', epoch_idx))
@@ -154,27 +136,20 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
 
     # update annotated calcification number loss of this epoch in the visdom
     visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([calcification_num_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
+                    Y=np.array([dice_total_epoch_level]),
+                    win='metrics_total_dice',
                     update='append',
-                    name='annotated calcifications',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
+                    name='{}'.format('training' if training else 'validation'),
+                    opts=dict(title='metrics_total_dice'))
 
-    # update recalled calcification number loss of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([recall_num_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='recalled calcifications',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
-
-    # update false positive calcification number loss of this epoch in the visdom
-    visdom_obj.line(X=np.array([epoch_idx]),
-                    Y=np.array([FP_num_epoch_level]),
-                    win='metrics_{}'.format('training' if training else 'validation'),
-                    update='append',
-                    name='FP calcifications',
-                    opts=dict(title='metrics_{}'.format('training' if training else 'validation')))
+    for class_idx in range(dice_class_epoch_level.shape[0]):
+        # update recalled calcification number loss of this epoch in the visdom
+        visdom_obj.line(X=np.array([epoch_idx]),
+                        Y=np.array([dice_class_epoch_level[class_idx]]),
+                        win='metrics_dice_class_{}'.format(class_idx),
+                        update='append',
+                        name='{}'.format('training' if training else 'validation'),
+                        opts=dict(title='metrics_dice_class_{}'.format(class_idx)))
 
     return
 
@@ -187,9 +162,9 @@ if __name__ == '__main__':
         os.makedirs(ckpt_dir)
 
         # copy related config and net .py file to the saving dir
-        shutil.copyfile('./config/config_micro_calcification_pixel_level_classification.py',
+        shutil.copyfile('./config/config_confident_learning_pixel_level_classification.py',
                         os.path.join(cfg.general.saving_dir,
-                                     'config_micro_calcification_pixel_level_classification.py'))
+                                     'config_confident_learning_pixel_level_classification.py'))
         shutil.copyfile('./net/{0}.py'.format(cfg.net.name),
                         os.path.join(cfg.general.saving_dir, '{0}.py'.format(cfg.net.name)))
 
@@ -222,41 +197,34 @@ if __name__ == '__main__':
         logger.write('Load ckpt: {0}...'.format(latest_ckpt_file))
 
     # setup metrics
-    metrics = MetricsPixelLevelClassification(cfg.metrics.prob_threshold, cfg.metrics.area_threshold,
-                                              cfg.metrics.distance_threshold)
+    metrics = MetricsPixelLevelClassification(cfg.net.out_channels)
 
     # setup Visualizer
     visdom_display_name = cfg.general.saving_dir.split('/')[-2]
     visdom_obj = visdom.Visdom(env=visdom_display_name, port=cfg.visdom.port)
 
     # create dataset and data loader for training
-    training_dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                                 mode='training',
-                                                 enable_random_sampling=cfg.dataset.enable_random_sampling,
-                                                 pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
-                                                 image_channels=cfg.dataset.image_channels,
-                                                 cropping_size=cfg.dataset.cropping_size,
-                                                 dilation_radius=cfg.dataset.dilation_radius,
-                                                 load_uncertainty_map=cfg.dataset.load_uncertainty_map,
-                                                 calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
-                                                 enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
-                                                 enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
-                                                 enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
+    training_dataset = ConfidentLearningDataset2d(data_root_dir=cfg.general.data_root_dir,
+                                                  mode='training',
+                                                  class_name=cfg.dataset.class_name,
+                                                  enable_random_sampling=cfg.dataset.enable_random_sampling,
+                                                  image_channels=cfg.dataset.image_channels,
+                                                  cropping_size=cfg.dataset.cropping_size,
+                                                  enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
+                                                  enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
+                                                  enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
 
     training_data_loader = DataLoader(training_dataset, batch_size=cfg.train.batch_size,
                                       shuffle=True, num_workers=cfg.train.num_threads)
 
     # create dataset and data loader for validation
-    validation_dataset = MicroCalcificationDataset(data_root_dir=cfg.general.data_root_dir,
-                                                   mode='validation',
-                                                   enable_random_sampling=False,
-                                                   pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
-                                                   image_channels=cfg.dataset.image_channels,
-                                                   cropping_size=cfg.dataset.cropping_size,
-                                                   dilation_radius=cfg.dataset.dilation_radius,
-                                                   load_uncertainty_map=cfg.dataset.load_uncertainty_map,
-                                                   calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
-                                                   enable_data_augmentation=False)
+    validation_dataset = ConfidentLearningDataset2d(data_root_dir=cfg.general.data_root_dir,
+                                                    mode='validation',
+                                                    class_name=cfg.dataset.class_name,
+                                                    enable_random_sampling=False,
+                                                    image_channels=cfg.dataset.image_channels,
+                                                    cropping_size=cfg.dataset.cropping_size,
+                                                    enable_data_augmentation=False)
 
     validation_data_loader = DataLoader(validation_dataset, batch_size=cfg.train.batch_size,
                                         shuffle=True, num_workers=cfg.train.num_threads)

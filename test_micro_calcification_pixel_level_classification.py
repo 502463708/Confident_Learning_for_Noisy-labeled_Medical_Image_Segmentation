@@ -8,8 +8,8 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from common.utils import extract_classification_preds_channel
-from config.config_micro_calcification_pixel_level_classification import cfg
-from dataset.dataset_micro_calcification_patch_level import MicroCalcificationDataset
+from config.config_confident_learning_pixel_level_classification import cfg
+from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
 from logger.logger import Logger
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from net.vnet2d_v3 import VNet2d
@@ -157,21 +157,18 @@ def TestMicroCalcificationReconstruction(args):
     logger.write_and_print('Load ckpt: {0}...'.format(ckpt_path))
 
     # create dataset and data loader
-    dataset = MicroCalcificationDataset(data_root_dir=args.data_root_dir,
-                                        mode=args.dataset_type,
-                                        enable_random_sampling=False,
-                                        pos_to_neg_ratio=cfg.dataset.pos_to_neg_ratio,
-                                        image_channels=cfg.dataset.image_channels,
-                                        cropping_size=cfg.dataset.cropping_size,
-                                        dilation_radius=args.dilation_radius,
-                                        load_uncertainty_map=False,
-                                        calculate_micro_calcification_number=cfg.dataset.calculate_micro_calcification_number,
-                                        enable_data_augmentation=False)
+    dataset = ConfidentLearningDataset2d(data_root_dir=args.data_root_dir,
+                                         mode=args.dataset_type,
+                                         class_name=cfg.dataset.class_name,
+                                         enable_random_sampling=False,
+                                         image_channels=cfg.dataset.image_channels,
+                                         cropping_size=cfg.dataset.cropping_size,
+                                         enable_data_augmentation=False)
     #
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=cfg.train.num_threads)
 
-    metrics = MetricsPixelLevelClassification(args.prob_threshold, args.area_threshold, args.distance_threshold)
+    metrics = MetricsPixelLevelClassification(cfg.net.out_channels)
 
     calcification_num = 0
     recall_num = 0
