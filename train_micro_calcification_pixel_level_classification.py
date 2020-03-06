@@ -12,6 +12,7 @@ from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from logger.logger import Logger
 from loss.cross_entropy_loss import CrossEntropyLoss
+from loss.slsr_loss import SLSRLoss
 from torch.utils.data import DataLoader
 from time import time
 
@@ -51,7 +52,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     start_time_for_epoch = time()
 
     # iterating through each batch
-    for batch_idx, (images_tensor, pixel_level_labels_tensor, _) in enumerate(data_loader):
+    for batch_idx, (images_tensor, pixel_level_labels_tensor, confident_maps_tensor, _) in enumerate(data_loader):
 
         # start time of this batch
         start_time_for_batch = time()
@@ -65,6 +66,8 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         # calculate loss of this batch
         if loss_func.get_name() == 'CrossEntropyLoss':
             loss = loss_func(predictions_tensor, pixel_level_labels_tensor)
+        elif loss_func.get_name() == 'SLSRLoss':
+            loss = loss_func(predictions_tensor, pixel_level_labels_tensor, confident_maps_tensor)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -118,6 +121,7 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
     # record metric on validation set for determining the best model to be saved
     if not training:
         metrics.determine_saving_metric_on_validation_list.append(dice_total_epoch_level)
+        metrics.max_metric_on_validation = max(metrics.max_metric_on_validation, dice_total_epoch_level)
 
     if logger is not None:
         logger.write('{} of epoch {} finished'.format('training' if training else 'evaluating', epoch_idx))
@@ -210,6 +214,7 @@ if __name__ == '__main__':
                                                   enable_random_sampling=cfg.dataset.enable_random_sampling,
                                                   image_channels=cfg.dataset.image_channels,
                                                   cropping_size=cfg.dataset.cropping_size,
+                                                  load_confident_map=cfg.dataset.load_confident_map,
                                                   enable_data_augmentation=cfg.dataset.augmentation.enable_data_augmentation,
                                                   enable_vertical_flip=cfg.dataset.augmentation.enable_vertical_flip,
                                                   enable_horizontal_flip=cfg.dataset.augmentation.enable_horizontal_flip)
@@ -224,15 +229,18 @@ if __name__ == '__main__':
                                                     enable_random_sampling=False,
                                                     image_channels=cfg.dataset.image_channels,
                                                     cropping_size=cfg.dataset.cropping_size,
+                                                    load_confident_map=False,
                                                     enable_data_augmentation=False)
 
     validation_data_loader = DataLoader(validation_dataset, batch_size=cfg.train.batch_size,
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['CrossEntropyLoss']
+    assert cfg.loss.name in ['CrossEntropyLoss', 'SLSRLoss']
     if cfg.loss.name == 'CrossEntropyLoss':
         loss_func = CrossEntropyLoss()
+    elif cfg.loss.name == 'SLSRLoss':
+        loss_func = SLSRLoss(cfg.loss.slsrloss.epsilon)
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)
@@ -271,3 +279,5 @@ if __name__ == '__main__':
 
         # save this model in case that this is the currently best model on validation set
         save_best_ckpt(metrics, net, ckpt_dir, epoch_idx)
+
+    logger.write_and_print('The best dice on validation set is {}.'.format(metrics.max_metric_on_validation))

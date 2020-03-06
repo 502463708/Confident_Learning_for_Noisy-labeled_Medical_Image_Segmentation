@@ -11,26 +11,30 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data1/minqing/data/JRST/processed-data/'
-__C.general.saving_dir = '/data1/minqing/models/20200228_JRST_dataset_clean_segmentation_clavicle_CE_default/'
-__C.general.cuda_device_idx = '2'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.5-beta1-7-beta2-12/all/'
+__C.general.saving_dir = '/data1/minqing/models/20200306_JRST_dataset_noisy_alpha-0.5_beta1_7_beta2_12_all_segmentation_lung_slsr_0.8/'
+__C.general.cuda_device_idx = '0'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
-__C.dataset.class_name = 'clavicle'  # 'clavicle', 'heart'
+__C.dataset.class_name = 'lung'  # 'clavicle', 'heart', 'lung'
 __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [256, 256]  # [H, W] (pixel)
-__C.dataset.enable_random_sampling = True  # True: randomly sample only during training
+__C.dataset.load_confident_map = True  # True: load confident maps only during training
+__C.dataset.enable_random_sampling = True  # True: randomly sampling only during training
 
 # data augmentation parameters
 __C.dataset.augmentation = {}
-__C.dataset.augmentation.enable_data_augmentation = True  # whether implement augmentation during training
+__C.dataset.augmentation.enable_data_augmentation = False  # whether implement augmentation during training
 __C.dataset.augmentation.enable_vertical_flip = False
 __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss' is supported now
+__C.loss.name = 'SLSRLoss'  # only 'CrossEntropyLoss', 'SLSRLoss' is supported now
+
+__C.loss.slsrloss = {}
+__C.loss.slsrloss.epsilon = 0.8
 
 # net
 __C.net = {}
@@ -40,9 +44,9 @@ __C.net.out_channels = 2
 
 # training parameters
 __C.train = {}
-__C.train.num_epochs = 501  # number of training epoch
+__C.train.num_epochs = 1001  # number of training epoch
 __C.train.save_epochs = 50  # save ckpt every x epochs
-__C.train.batch_size = 22
+__C.train.batch_size = 4
 __C.train.num_threads = 8
 
 # learning rate scheduler

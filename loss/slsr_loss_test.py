@@ -3,7 +3,7 @@ import os
 import time
 import torch
 
-from loss.uncertainty_cross_entropy_loss_v1 import UncertaintyCrossEntropyLossV1
+from loss.slsr_loss import SLSRLoss
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
@@ -18,13 +18,8 @@ def ParseArguments():
 
     parser.add_argument('--batch_size',
                         type=int,
-                        default=3,
+                        default=2,
                         help='number of patches in each batch')
-
-    parser.add_argument('--upn',
-                        type=int,
-                        default=56 * 56,
-                        help='uncertainty pixel number threshold')
 
     parser.add_argument('--num_classes',
                         type=int,
@@ -33,12 +28,12 @@ def ParseArguments():
 
     parser.add_argument('--height',
                         type=int,
-                        default=112,
+                        default=5,
                         help='height of images')
 
     parser.add_argument('--width',
                         type=int,
-                        default=112,
+                        default=5,
                         help='width of images')
 
     args = parser.parse_args()
@@ -46,21 +41,24 @@ def ParseArguments():
     return args
 
 
-def TestUncertaintyTTestLossV1(args):
-    loss_func = UncertaintyCrossEntropyLossV1(args.upn)
+def TestSLSRLoss(args):
+    loss_func = SLSRLoss()
 
     for i in range(args.num_test):
         start_time = time.time()
-        preds = torch.rand(args.batch_size, 2).cuda()
+        preds = torch.rand(args.batch_size, 2, args.height, args.width).cuda()
 
-        labels = torch.rand(args.batch_size).cuda()
+        labels = torch.rand(args.batch_size, args.height, args.width).cuda()
         labels[labels <= 0.5] = 0
         labels[labels > 0.5] = 1
         labels = labels.cuda()
 
-        uncertainty_maps = torch.rand(args.batch_size, args.height, args.width).cuda()
+        confident_maps = torch.rand(args.batch_size, args.height, args.width)
+        confident_maps[confident_maps <= 0.5] = 0
+        confident_maps[confident_maps > 0.5] = 1
+        confident_maps = confident_maps.cuda()
 
-        loss = loss_func(preds, labels, uncertainty_maps)
+        loss = loss_func(preds, labels, confident_maps)
 
         print('time:', time.time() - start_time, 'loss: ', loss.item())
         print('\n')
@@ -70,4 +68,4 @@ def TestUncertaintyTTestLossV1(args):
 
 if __name__ == '__main__':
     args = ParseArguments()
-    TestUncertaintyTTestLossV1(args)
+    TestSLSRLoss(args)

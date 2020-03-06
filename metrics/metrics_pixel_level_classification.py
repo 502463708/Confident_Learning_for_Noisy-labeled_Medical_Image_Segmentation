@@ -10,6 +10,8 @@ class MetricsPixelLevelClassification(object):
         # record metric on validation set for determining the best model to be saved
         self.determine_saving_metric_on_validation_list = list()
 
+        self.max_metric_on_validation = 0
+
         assert num_classes >= 2
         self.num_classes = num_classes
 

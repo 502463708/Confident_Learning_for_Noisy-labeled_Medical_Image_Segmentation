@@ -32,39 +32,6 @@ def dilate_image_level_label(image_level_label, dilation_radius):
     return dilated_image_level_label
 
 
-def post_process_residue(image_np, prob_threshold, area_threshold):
-    """
-    This function implements the post-process for the residue, including
-    the following 2 steps:
-        1. transform the residue into binary mask based on prob_threshold
-        2. discard connected components whose area < area_threshold
-    :param image_np: residue
-    :param prob_threshold:
-    :param area_threshold:
-    :return:
-    """
-    assert len(image_np.shape) == 2
-
-    image_np[image_np <= prob_threshold] = 0
-    image_np[image_np > prob_threshold] = 1
-
-    connected_components = measure.label(image_np, connectivity=2)
-
-    props = measure.regionprops(connected_components)
-
-    connected_component_num = len(props)
-
-    if connected_component_num > 0:
-        for connected_component_idx in range(connected_component_num):
-            if props[connected_component_idx].area < area_threshold:
-                connected_components[connected_components == connected_component_idx + 1] = 0
-
-    post_processed_image_np = np.zeros_like(image_np)
-    post_processed_image_np[connected_components != 0] = 1
-
-    return post_processed_image_np
-
-
 def get_ckpt_path(model_saving_dir, epoch_idx=-1):
     """
     Given a dir (where the model is saved) and an index (which ckpt is specified),
@@ -141,22 +108,6 @@ def extract_classification_preds_channel(preds, channel_idx, use_softmax=True, k
         assert len(preds.shape) == len(extracted_preds.shape)
 
     return extracted_preds
-
-
-def BatchImageToNumber(Batch_tensor):
-    Batch_np = Batch_tensor.numpy()
-    print(Batch_tensor.shape)
-    assert len(Batch_tensor.shape) == 3  # B*H*W
-    Batch_out_list=[]
-    for i in range(Batch_np.shape[0]):
-        img = Batch_np[i, :, :]
-        label_connected_components = measure.label(img, connectivity=2)
-        label_props = measure.regionprops(label_connected_components)
-        label_num = list(len(label_props))
-        Batch_out_list.append(label_num)
-    Batch_out_np= np.array(Batch_out_list)
-    Batch_out_tensor=torch.from_numpy(Batch_out_np)
-    return Batch_out_tensor
 
 
 def get_min_distance(mask, coordinate):

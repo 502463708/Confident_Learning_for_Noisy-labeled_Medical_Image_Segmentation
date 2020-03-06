@@ -37,7 +37,8 @@ def generate_and_check_filename_list(dataset_type_dir, class_name):
 
 class ConfidentLearningDataset2d(Dataset):
     def __init__(self, data_root_dir, mode, class_name, enable_random_sampling, image_channels, cropping_size,
-                 enable_data_augmentation, enable_vertical_flip=False, enable_horizontal_flip=False):
+                 load_confident_map, enable_data_augmentation, enable_vertical_flip=False,
+                 enable_horizontal_flip=False):
 
         super(ConfidentLearningDataset2d, self).__init__()
 
@@ -63,6 +64,10 @@ class ConfidentLearningDataset2d(Dataset):
         # cropping_size contains length of height and width
         assert len(cropping_size) == 2
         self.cropping_size = cropping_size
+
+        # load_confident_map is a bool variable
+        assert isinstance(load_confident_map, bool)
+        self.load_confident_map = load_confident_map
 
         # enable_data_augmentation is a bool variable
         assert isinstance(enable_data_augmentation, bool)
@@ -119,21 +124,30 @@ class ConfidentLearningDataset2d(Dataset):
         pixel_level_label_np = pixel_level_label_np.astype(np.float)
         pixel_level_label_np /= 255.0
 
+        confident_map_np = np.zeros_like(image_np)
+        if self.load_confident_map:
+            confident_map_path = image_path.replace('images', '{}-confident-maps'.format(self.class_name))
+            assert os.path.exists(confident_map_path)
+            confident_map_np = (cv2.imread(confident_map_path, cv2.IMREAD_GRAYSCALE)).astype(np.float) / 255.0
+
         # check the consistency of size between image, its pixel-level label
-        assert image_np.shape == pixel_level_label_np.shape
+        assert image_np.shape == pixel_level_label_np.shape == confident_map_np.shape
 
         # implement data augmentation only when the variable enable_data_augmentation is set True
         if self.enable_data_augmentation:
             if self.enable_vertical_flip and random.random() >= 0.5:
                 image_np = np.flipud(image_np)
                 pixel_level_label_np = np.flipud(pixel_level_label_np)
+                confident_map_np = np.flipud(confident_map_np)
             if self.enable_horizontal_flip and random.random() >= 0.5:
                 image_np = np.fliplr(image_np)
                 pixel_level_label_np = np.fliplr(pixel_level_label_np)
+                confident_map_np = np.fliplr(confident_map_np)
 
         # guarantee image_np, pixel_level_label_np and uncertainty_map keep contiguous after data augmentation
         image_np = np.ascontiguousarray(image_np)
         pixel_level_label_np = np.ascontiguousarray(pixel_level_label_np)
+        confident_map_np = np.ascontiguousarray(confident_map_np)
 
         # convert ndarray to tensor
         #
@@ -143,8 +157,10 @@ class ConfidentLearningDataset2d(Dataset):
         # pixel-level label tensor
         pixel_level_label_tensor = torch.LongTensor(pixel_level_label_np)  # shape: [H, W]
         #
+        # confident map tensor
+        confident_map_tensor = torch.LongTensor(confident_map_np)  # shape: [H, W]
 
-        # resize images, masks and if the actual size is not consistent with the target size
+        # resize image, mask and confident map only when the actual size is not consistent with the target size
         if np.linalg.norm(np.array(self.cropping_size) - original_shape) > 1e-3:
             image_tensor = torch.nn.functional.interpolate(image_tensor.unsqueeze(dim=0),
                                                            size=(self.cropping_size[0], self.cropping_size[1]),
@@ -157,13 +173,20 @@ class ConfidentLearningDataset2d(Dataset):
                 size=(self.cropping_size[0], self.cropping_size[1]),
                 scale_factor=None, mode='nearest').squeeze().long()
 
+            confident_map_tensor = confident_map_tensor.float()
+            confident_map_tensor = torch.nn.functional.interpolate(
+                confident_map_tensor.unsqueeze(dim=0).unsqueeze(dim=0),
+                size=(self.cropping_size[0], self.cropping_size[1]),
+                scale_factor=None, mode='nearest').squeeze().long()
+
         assert len(image_tensor.shape) == 3
         assert len(pixel_level_label_tensor.shape) == 2
+        assert len(confident_map_tensor.shape) == 2
         assert image_tensor.shape[0] == self.image_channels
         assert image_tensor.shape[1] == pixel_level_label_tensor.shape[0] == self.cropping_size[0]
         assert image_tensor.shape[2] == pixel_level_label_tensor.shape[1] == self.cropping_size[1]
 
-        return image_tensor, pixel_level_label_tensor, filename
+        return image_tensor, pixel_level_label_tensor, confident_map_tensor, filename
 
     def __len__(self):
 
