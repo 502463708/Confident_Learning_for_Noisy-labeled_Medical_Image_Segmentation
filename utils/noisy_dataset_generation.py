@@ -103,11 +103,11 @@ def gaussian_noise(src_label_np, max_radius, move_ratio):
     return dst_label_np
 
 
-img=cv2.imread('/data1/minqing/data/JRST/noisy-data-alpha-0.1-beta1-10-beta2-15/all/training/clavicle/JPCLN001.png',0)
-dst=gaussian_noise(src_label_np=img, max_radius=2, move_ratio=0.25)
-cv2.imshow('image',dst)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# img=cv2.imread('/data1/minqing/data/JRST/noisy-data-alpha-0.1-beta1-10-beta2-15/all/training/clavicle/JPCLN001.png',0)
+# dst=gaussian_noise(src_label_np=img, max_radius=2, move_ratio=0.25)
+# cv2.imshow('image',dst)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 def add_noise(src_label_np, beta1, beta2):
