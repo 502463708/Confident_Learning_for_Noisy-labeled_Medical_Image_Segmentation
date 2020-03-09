@@ -10,9 +10,8 @@ from utils.noisy_dataset_generation import add_noise
 def ParseArguments():
     parser = argparse.ArgumentParser()
 
-    alpha = 0.5  # 0.1 0.3 05
-    beta1 = 10
-    beta2 = 15
+    alpha = 0.5  # 0.1 0.3 0.5
+    beta = 10
 
     parser.add_argument('--src_data_root_dir',
                         type=str,
@@ -22,22 +21,17 @@ def ParseArguments():
                         type=float,
                         default=alpha,
                         help='The ratio of data to be deteriorated with noisy.')
-    parser.add_argument('--beta1',
-                        type=float,
-                        default=beta1,
-                        help='The lower bound of label to be deteriorated.')
-    parser.add_argument('--beta2',
-                        type=float,
-                        default=beta2,
-                        help='The upper bound of label to be deteriorated.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-{}-beta1-{}-beta2-{}'.format(alpha, beta1,
-                                                                                                        beta2),
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-{}-clavicle-{}'.format(alpha, beta),
                         help='Destination dir of dataset.')
     parser.add_argument('--label_class_name_list',
                         type=list,
                         default=['clavicle', 'heart', 'lung'],
+                        help='Class name list.')
+    parser.add_argument('--label_class_parameter_list',
+                        type=list,
+                        default=[[beta, beta], [10, 10], [15, 15]],
                         help='Class name list.')
 
     args = parser.parse_args()
@@ -68,7 +62,7 @@ def TestNoisyDatasetGeneration(args):
     noisy_data_num = int(len(filename_list) * args.alpha)
 
     # add noise into the training data
-    for label_class_name in args.label_class_name_list:
+    for label_class_name, label_class_parameter in zip(args.label_class_name_list, args.label_class_parameter_list):
         random.shuffle(filename_list)
         noisy_filename_list = filename_list[:noisy_data_num]
 
@@ -76,7 +70,7 @@ def TestNoisyDatasetGeneration(args):
             src_label_path = os.path.join(args.all_root_dir, 'training', label_class_name, noisy_filename)
             src_label_np = cv2.imread(src_label_path, cv2.IMREAD_GRAYSCALE)
 
-            dst_label_np, noise_type = add_noise(src_label_np, args.beta1, args.beta2)
+            dst_label_np, noise_type = add_noise(src_label_np, label_class_parameter[0], label_class_parameter[1])
 
             print(label_class_name, noisy_filename, noise_type)
 

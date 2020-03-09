@@ -15,27 +15,23 @@ from net.vnet2d_v3 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 cudnn.benchmark = True
 
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--src_data_root_dir',
+    parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-beta1-7-beta2-12/sub-2/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-clavicle-5/',
                         help='Source data dir.')
-    parser.add_argument('--dst_data_root_dir',
+    parser.add_argument('--model_sub_1_saving_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-beta1-7-beta2-12/all/',
-                        help='Destination data dir.')
-    parser.add_argument('--model_saving_dir',
-                        type=str,
-                        default='/data1/minqing/models/20200306_JRST_dataset_noisy_alpha-0.5_beta1_7_beta2_12_sub_1_segmentation_clavicle_CE_default/',
+                        default='/data1/minqing/models/20200309_JRST_dataset_noisy_alpha-0.5_clavicle_5_sub_1_segmentation_clavicle_CE_default/',
                         help='Model saved dir.')
     parser.add_argument('--label_class_name',
                         type=str,
-                        default='lung',  # 'clavicle', 'heart', 'lung'
+                        default='clavicle',  # 'clavicle', 'heart', 'lung'
                         help='The label class name.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -55,8 +51,16 @@ def ParseArguments():
     return args
 
 
-def TestConfidentMapGeneration(args):
-    class_cm_dir = os.path.join(args.dst_data_root_dir, args.dataset_type,
+def TestConfidentMapCrossValidation(args, model_idx):
+    assert model_idx in [1, 2]
+
+    src_data_root_dir = os.path.join(args.data_root_dir, 'sub-2')
+    model_saving_dir = args.model_sub_1_saving_dir
+    if model_idx == 2:
+        model_saving_dir = model_saving_dir.replace('sub_1', 'sub_2')
+        src_data_root_dir = src_data_root_dir.replace('sub-2', 'sub-1')
+
+    class_cm_dir = os.path.join(args.data_root_dir, 'all', args.dataset_type,
                                 '{}-confident-maps'.format(args.label_class_name))
     # create dir when it does not exist
     if not os.path.exists(class_cm_dir):
@@ -66,7 +70,7 @@ def TestConfidentMapGeneration(args):
     net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
 
     # load the specified ckpt
-    ckpt_dir = os.path.join(args.model_saving_dir, 'ckpt')
+    ckpt_dir = os.path.join(model_saving_dir, 'ckpt')
     # epoch_idx is specified -> load the specified ckpt
     if args.epoch_idx >= 0:
         ckpt_path = os.path.join(ckpt_dir, 'net_epoch_{}.pth'.format(args.epoch_idx))
@@ -83,7 +87,7 @@ def TestConfidentMapGeneration(args):
     net = net.eval()
 
     # create dataset
-    dataset = ConfidentLearningDataset2d(data_root_dir=args.src_data_root_dir,
+    dataset = ConfidentLearningDataset2d(data_root_dir=src_data_root_dir,
                                          mode=args.dataset_type,
                                          enable_random_sampling=False,
                                          class_name=args.label_class_name,
@@ -135,7 +139,8 @@ def TestConfidentMapGeneration(args):
 
     assert preds_np_accumulated.shape[0] == masks_np_accumulated.shape[0]
 
-    noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both', n_jobs=1)
+    noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
+                                               n_jobs=1)
     confident_maps_np = noise.reshape(-1, height, width).astype(np.uint8) * 255
 
     for idx in range(len(filename_list)):
@@ -145,6 +150,13 @@ def TestConfidentMapGeneration(args):
         dst_path = os.path.join(class_cm_dir, filename)
 
         cv2.imwrite(dst_path, confident_map_np)
+
+    return
+
+
+def TestConfidentMapGeneration(args):
+    TestConfidentMapCrossValidation(args, 1)
+    TestConfidentMapCrossValidation(args, 2)
 
     return
 

@@ -3,17 +3,13 @@ import numpy as np
 import random
 
 
-def dilate_mask(src_label_np, min_radius, max_radius):
+def dilate_mask(src_label_np, radius):
     """
     This function implements the dilation for mask
     :param src_label_np:
     :param radius:
     :return:
     """
-    assert max_radius >= min_radius > 0
-
-    radius = random.randint(min_radius, max_radius)
-
     dilation_diameter = int(2 * radius + 1)
     kernel = np.zeros((dilation_diameter, dilation_diameter), np.uint8)
 
@@ -30,17 +26,13 @@ def dilate_mask(src_label_np, min_radius, max_radius):
     return dst_label_np
 
 
-def erode_mask(src_label_np, min_radius, max_radius):
+def erode_mask(src_label_np, radius):
     """
     This function implements the dilation for mask
     :param src_label_np:
     :param radius:
     :return:
     """
-    assert max_radius >= min_radius > 0
-
-    radius = random.randint(min_radius, max_radius)
-
     erode_diameter = int(2 * radius + 1)
     kernel = np.zeros((erode_diameter, erode_diameter), np.uint8)
 
@@ -75,19 +67,17 @@ def foreground_move(src_label_np, max_distance):
     return dst_label_np
 
 
-def gaussian_noise(src_label_np, max_radius, move_ratio):
+def gaussian_noise(src_label_np, max_radius):
     assert max_radius >= 0
-    assert move_ratio > 0
-    assert move_ratio < 1
 
     height, width = src_label_np.shape
     edges = cv2.Canny(src_label_np, threshold1=64, threshold2=200)
 
-    random_matrix = np.random.randint(100, size=(height, width))
-    random_matrix[random_matrix <= move_ratio * 100] = 0
-    random_matrix[random_matrix > 0] = 1
-    choosen_edges = edges * random_matrix
-    choose_index = np.where(choosen_edges > 0)  # tutle with length 2   row and column
+    random_matrix = np.random.rand(height, width)
+    random_matrix[random_matrix <= 0.5] = 0
+    random_matrix[random_matrix > 0.5] = 1
+    chosen_edges = edges * random_matrix
+    choose_index = np.where(chosen_edges > 0)  # tuple with length 2 row and column
 
     dst_label_np = src_label_np
     for index in range(len(choose_index[0])):
@@ -103,6 +93,7 @@ def gaussian_noise(src_label_np, max_radius, move_ratio):
     return dst_label_np
 
 
+# debug only
 # img=cv2.imread('/data1/minqing/data/JRST/noisy-data-alpha-0.1-beta1-10-beta2-15/all/training/clavicle/JPCLN001.png',0)
 # dst=gaussian_noise(src_label_np=img, max_radius=2, move_ratio=0.25)
 # cv2.imshow('image',dst)
@@ -110,20 +101,21 @@ def gaussian_noise(src_label_np, max_radius, move_ratio):
 # cv2.destroyAllWindows()
 
 
-def add_noise(src_label_np, beta1, beta2):
+def add_noise(src_label_np, min_radius, max_radius):
     assert len(src_label_np.shape) == 2
-    assert 0 <= beta1 <= beta2
+    assert 0 <= max_radius <= max_radius
 
     random_num = random.random()
-    noise_type = 'dilate'
+    radius = random.randint(min_radius, max_radius)
 
     if random_num < 0.33:
-        dst_label_np = dilate_mask(src_label_np, beta1, beta2)
+        dst_label_np = dilate_mask(src_label_np, radius)
+        noise_type = 'dilate'
     elif random_num < 0.66:
-        dst_label_np = erode_mask(src_label_np, beta1 - 5, beta2 - 5)
+        dst_label_np = erode_mask(src_label_np, radius)
         noise_type = 'erode'
     else:
-        dst_label_np = foreground_move(src_label_np, beta2)
-        noise_type = 'foreground move'
+        dst_label_np = gaussian_noise(src_label_np, max_radius)
+        noise_type = 'gaussian noise'
 
     return dst_label_np, noise_type

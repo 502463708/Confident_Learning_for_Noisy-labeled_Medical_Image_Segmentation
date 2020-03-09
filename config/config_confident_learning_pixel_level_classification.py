@@ -4,6 +4,17 @@ training, validation, and test stages of micro calcification pixel-level
 classification.
 """
 
+'''
+data_root_dir
+saving_dir
+cuda_device_idx
+class_name
+load_confident_map
+loss.name
+loss.slsrloss.epsilon
+batch_size
+'''
+
 from easydict import EasyDict as edict
 
 __C = edict()
@@ -11,13 +22,13 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.5-beta1-7-beta2-12/all/'
-__C.general.saving_dir = '/data1/minqing/models/20200306_JRST_dataset_noisy_alpha-0.5_beta1_7_beta2_12_all_segmentation_lung_slsr_0.8/'
-__C.general.cuda_device_idx = '0'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.5-clavicle-10/all/'
+__C.general.saving_dir = '/data1/minqing/models/20200309_JRST_dataset_noisy_alpha-0.5_clavicle_10_all_segmentation_clavicle_slsr_0.8/'
+__C.general.cuda_device_idx = '3'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
-__C.dataset.class_name = 'lung'  # 'clavicle', 'heart', 'lung'
+__C.dataset.class_name = 'clavicle'  # 'clavicle', 'heart', 'lung'
 __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [256, 256]  # [H, W] (pixel)
 __C.dataset.load_confident_map = True  # True: load confident maps only during training

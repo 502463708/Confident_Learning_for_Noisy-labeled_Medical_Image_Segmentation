@@ -19,7 +19,7 @@ def ParseArguments():
                         help='Clean data root dir.')
     parser.add_argument('--noisy_data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-beta1-7-beta2-12/all/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-clavicle-10/all/',
                         help='Noisy data root dir.')
     parser.add_argument('--label_class_name',
                         type=str,
@@ -64,7 +64,10 @@ def TestNoiseIdentification(args):
 
     filename_list = os.listdir(clean_mask_dir)
 
-    dice_list = list()
+    noise_num_dataset_level = 0
+    positive_num_dataset_level = 0
+    recall_num_dataset_level = 0
+
     for filename in filename_list:
         logger.write_and_print('--------------------------------------------------------------------------------------')
         logger.write_and_print('    Evaluating: {}'.format(filename))
@@ -83,13 +86,13 @@ def TestNoiseIdentification(args):
 
         noise_np = clean_mask_np ^ noisy_mask_np
 
-        # calculating noise identification dice
-        intersection = (noise_np * confident_map_np).sum()
-        union = noise_np.sum() + confident_map_np.sum()
-
-        dice_score = 2. * intersection / (union + 1e-4)
-
-        dice_list.append(dice_score)
+        # calculating noise identification metric
+        recall_num_image_level = (noise_np * confident_map_np).sum()
+        noise_num_image_level = noise_np.sum()
+        positive_num_image_level = confident_map_np.sum()
+        positive_num_dataset_level += positive_num_image_level
+        recall_num_dataset_level += recall_num_image_level
+        noise_num_dataset_level += noise_num_image_level
 
         dst_image_path = os.path.join(dst_saving_dir, filename.replace('.png', '_image.png'))
         dst_clean_mask_path = os.path.join(dst_saving_dir, filename.replace('.png', '_clean_mask.png'))
@@ -103,16 +106,22 @@ def TestNoiseIdentification(args):
         shutil.copyfile(src_confident_map_path, dst_confident_map_path)
         cv2.imwrite(dst_noise_path, (noise_np * 255).astype(np.uint8))
 
-        logger.write_and_print('    Dice score = {:.4f}s'.format(dice_score))
+        logger.write_and_print('    Noise pixel number = {}'.format(noise_num_image_level))
+        logger.write_and_print('    Positive pixel number = {}'.format(positive_num_image_level))
+        logger.write_and_print('    Recalled pixel number = {}'.format(recall_num_image_level))
         logger.write_and_print('    Finished evaluating, consuming time = {:.4f}s'.format(time() - start_time_for_batch))
         logger.write_and_print('--------------------------------------------------------------------------------------')
 
         logger.flush()
 
-    mean_dice_score = np.array(dice_list).mean()
+    mean_recall_rate = recall_num_dataset_level / noise_num_dataset_level
+    mean_precision_rate = recall_num_dataset_level / positive_num_dataset_level
+    f1_score = 2 * mean_recall_rate * mean_precision_rate / (mean_recall_rate + mean_precision_rate)
 
     logger.write_and_print('--------------------------------------------------------------------------------------')
-    logger.write_and_print('Mean dice score = {:.4f}s'.format(mean_dice_score))
+    logger.write_and_print('Mean recall rate = {:.2f}%'.format(mean_recall_rate * 100))
+    logger.write_and_print('Mean precision rate = {:.2f}%'.format(mean_precision_rate * 100))
+    logger.write_and_print('F1 score = {:.2f}%'.format(f1_score * 100))
 
     return
 
