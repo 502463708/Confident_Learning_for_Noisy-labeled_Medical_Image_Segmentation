@@ -15,24 +15,34 @@ from net.vnet2d_v3 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 cudnn.benchmark = True
 
+'''
+data_root_dir : alpha=0.3,0.7; beta=clavicle(5,10),heart(14,20),lung(20,30)
+model_sub_1_saving_dir
+label_class_name: 'clavicle', 'heart', 'lung'
+CL_type: 'prune_by_class' or 'prune_by_noise_rate'
+'''
 
 def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-clavicle-5/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.7-clavicle-10/',
                         help='Source data dir.')
     parser.add_argument('--model_sub_1_saving_dir',
                         type=str,
-                        default='/data1/minqing/models/20200309_JRST_dataset_noisy_alpha-0.5_clavicle_5_sub_1_segmentation_clavicle_CE_default/',
+                        default='/data1/minqing/models/20200312_JRST_dataset_noisy_alpha-0.7_clavicle_10_sub_1_segmentation_clavicle_CE_default/',
                         help='Model saved dir.')
     parser.add_argument('--label_class_name',
                         type=str,
                         default='clavicle',  # 'clavicle', 'heart', 'lung'
                         help='The label class name.')
+    parser.add_argument('--CL_type',
+                        type=str,
+                        default='prune_by_class',  # 'prune_by_class', 'prune_by_noise_rate', 'both'
+                        help='The implement of Confident Learning.')
     parser.add_argument('--dataset_type',
                         type=str,
                         default='training',
@@ -54,6 +64,8 @@ def ParseArguments():
 def TestConfidentMapCrossValidation(args, model_idx):
     assert model_idx in [1, 2]
 
+    assert args.CL_type in ['prune_by_class', 'prune_by_noise_rate', 'both']
+
     src_data_root_dir = os.path.join(args.data_root_dir, 'sub-2')
     model_saving_dir = args.model_sub_1_saving_dir
     if model_idx == 2:
@@ -62,6 +74,9 @@ def TestConfidentMapCrossValidation(args, model_idx):
 
     class_cm_dir = os.path.join(args.data_root_dir, 'all', args.dataset_type,
                                 '{}-confident-maps'.format(args.label_class_name))
+    if args.CL_type != 'both':
+        class_cm_dir = class_cm_dir.replace('confident-maps', 'confident-maps' + args.CL_type.replace('_', '-'))
+
     # create dir when it does not exist
     if not os.path.exists(class_cm_dir):
         os.mkdir(class_cm_dir)

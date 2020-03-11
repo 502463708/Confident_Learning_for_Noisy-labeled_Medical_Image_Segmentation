@@ -10,7 +10,8 @@ from utils.noisy_dataset_generation import add_noise
 def ParseArguments():
     parser = argparse.ArgumentParser()
 
-    alpha = 0.5  # 0.1 0.3 0.5
+    alpha = 0.7  # 0.3 0.5 0.7
+    class_name = 'clavicle'  # 'clavicle', 'heart', 'lung'
     beta = 10
 
     parser.add_argument('--src_data_root_dir',
@@ -23,7 +24,7 @@ def ParseArguments():
                         help='The ratio of data to be deteriorated with noisy.')
     parser.add_argument('--dst_data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-{}-clavicle-{}'.format(alpha, beta),
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-{}-{}-{}'.format(alpha, class_name, beta),
                         help='Destination dir of dataset.')
     parser.add_argument('--label_class_name_list',
                         type=list,
@@ -31,7 +32,7 @@ def ParseArguments():
                         help='Class name list.')
     parser.add_argument('--label_class_parameter_list',
                         type=list,
-                        default=[[beta, beta], [10, 10], [15, 15]],
+                        default=[[beta, beta], [beta, beta], [beta, beta]],
                         help='Class name list.')
 
     args = parser.parse_args()

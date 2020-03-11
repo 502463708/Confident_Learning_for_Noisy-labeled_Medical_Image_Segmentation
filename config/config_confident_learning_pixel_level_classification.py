@@ -22,13 +22,13 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.5-clavicle-10/all/'
-__C.general.saving_dir = '/data1/minqing/models/20200309_JRST_dataset_noisy_alpha-0.5_clavicle_10_all_segmentation_clavicle_slsr_0.8/'
-__C.general.cuda_device_idx = '3'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.7-lung-20/all/'
+__C.general.saving_dir = '/data1/minqing/models/20200314_JRST_dataset_noisy_alpha-0.7_lung_20_all_segmentation_lung_slsr_0.2/'
+__C.general.cuda_device_idx = '0'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
-__C.dataset.class_name = 'clavicle'  # 'clavicle', 'heart', 'lung'
+__C.dataset.class_name = 'lung'  # 'clavicle', 'heart', 'lung'
 __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [256, 256]  # [H, W] (pixel)
 __C.dataset.load_confident_map = True  # True: load confident maps only during training
@@ -45,7 +45,7 @@ __C.loss = {}
 __C.loss.name = 'SLSRLoss'  # only 'CrossEntropyLoss', 'SLSRLoss' is supported now
 
 __C.loss.slsrloss = {}
-__C.loss.slsrloss.epsilon = 0.8
+__C.loss.slsrloss.epsilon = 0.2
 
 # net
 __C.net = {}
