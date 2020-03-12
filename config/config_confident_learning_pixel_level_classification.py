@@ -22,9 +22,9 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.7-lung-20/all/'
-__C.general.saving_dir = '/data1/minqing/models/20200314_JRST_dataset_noisy_alpha-0.7_lung_20_all_segmentation_lung_slsr_0.2/'
-__C.general.cuda_device_idx = '0'  # specify the index of the gpu devices to be occupied
+__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.7-lung-30/all/'
+__C.general.saving_dir = '/data1/minqing/models/20200315_JRST_dataset_noisy_alpha-0.7_lung_30_all_segmentation_lung_slsr_1/'
+__C.general.cuda_device_idx = '2'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
@@ -45,7 +45,7 @@ __C.loss = {}
 __C.loss.name = 'SLSRLoss'  # only 'CrossEntropyLoss', 'SLSRLoss' is supported now
 
 __C.loss.slsrloss = {}
-__C.loss.slsrloss.epsilon = 0.2
+__C.loss.slsrloss.epsilon = 1
 
 # net
 __C.net = {}

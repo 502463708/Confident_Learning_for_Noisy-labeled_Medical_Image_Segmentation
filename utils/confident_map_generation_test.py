@@ -15,7 +15,7 @@ from net.vnet2d_v3 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 cudnn.benchmark = True
 
 '''
@@ -25,23 +25,25 @@ label_class_name: 'clavicle', 'heart', 'lung'
 CL_type: 'prune_by_class' or 'prune_by_noise_rate'
 '''
 
+
 def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.7-clavicle-10/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.3-clavicle-5/',
                         help='Source data dir.')
     parser.add_argument('--model_sub_1_saving_dir',
                         type=str,
-                        default='/data1/minqing/models/20200312_JRST_dataset_noisy_alpha-0.7_clavicle_10_sub_1_segmentation_clavicle_CE_default/',
+                        default='/data1/minqing/models/20200312_JRST_dataset_noisy_alpha-0.3_clavicle_5_sub_1_segmentation_clavicle_CE_default/',
                         help='Model saved dir.')
     parser.add_argument('--label_class_name',
                         type=str,
                         default='clavicle',  # 'clavicle', 'heart', 'lung'
                         help='The label class name.')
-    parser.add_argument('--CL_type',
+    parser.add_argument('--CL_type_list',
                         type=str,
-                        default='prune_by_class',  # 'prune_by_class', 'prune_by_noise_rate', 'both'
+                        default=['Cij', 'Qij', 'intersection', 'union'],
+                        # 'Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both'
                         help='The implement of Confident Learning.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -61,10 +63,8 @@ def ParseArguments():
     return args
 
 
-def TestConfidentMapCrossValidation(args, model_idx):
+def TestConfidentMapEachModelEachCLType(args, model_idx, CL_type):
     assert model_idx in [1, 2]
-
-    assert args.CL_type in ['prune_by_class', 'prune_by_noise_rate', 'both']
 
     src_data_root_dir = os.path.join(args.data_root_dir, 'sub-2')
     model_saving_dir = args.model_sub_1_saving_dir
@@ -74,8 +74,8 @@ def TestConfidentMapCrossValidation(args, model_idx):
 
     class_cm_dir = os.path.join(args.data_root_dir, 'all', args.dataset_type,
                                 '{}-confident-maps'.format(args.label_class_name))
-    if args.CL_type != 'both':
-        class_cm_dir = class_cm_dir.replace('confident-maps', 'confident-maps' + args.CL_type.replace('_', '-'))
+    if CL_type != 'both':
+        class_cm_dir = class_cm_dir.replace('confident-maps', 'confident-maps-' + CL_type.replace('_', '-'))
 
     # create dir when it does not exist
     if not os.path.exists(class_cm_dir):
@@ -115,6 +115,7 @@ def TestConfidentMapCrossValidation(args, model_idx):
     data_loader = DataLoader(dataset, batch_size=args.batch_size,
                              shuffle=False, num_workers=cfg.train.num_threads)
 
+    preds_softmax_np_accumulated = 0
     preds_np_accumulated = 0
     masks_np_accumulated = 0
     filename_list = list()
@@ -130,32 +131,61 @@ def TestConfidentMapCrossValidation(args, model_idx):
         # transfer the tensor into gpu device
         images_tensor = images_tensor.cuda()
 
+        preds_tensor_softmax = net(images_tensor, use_softmax=True)
+        net = net.train()
         preds_tensor = net(images_tensor, use_softmax=True)
+        net = net.eval()
+        preds_softmax_np = preds_tensor_softmax.cpu().detach().numpy()
         preds_np = preds_tensor.cpu().detach().numpy()
         masks_np = masks_tensor.cpu().numpy()
         filename_list += list(filenames)
 
         if batch_idx == 0:
+            preds_softmax_np_accumulated = preds_softmax_np
             preds_np_accumulated = preds_np
             masks_np_accumulated = masks_np
         else:
+            preds_softmax_np_accumulated = np.concatenate((preds_softmax_np_accumulated, preds_softmax_np), axis=0)
             preds_np_accumulated = np.concatenate((preds_np_accumulated, preds_np), axis=0)
             masks_np_accumulated = np.concatenate((masks_np_accumulated, masks_np), axis=0)
 
-        print('Finished evaluating, consuming time = {:.4f}s'.format(time() - start_time_for_batch))
-        print('--------------------------------------------------------------------------------------')
+        print('    Finished evaluating, consuming time = {:.4f}s'.format(time() - start_time_for_batch))
+        print('    --------------------------------------------------------------------------------------')
 
     preds_np_accumulated = np.swapaxes(preds_np_accumulated, 1, 2)
     preds_np_accumulated = np.swapaxes(preds_np_accumulated, 2, 3)
     preds_np_accumulated = preds_np_accumulated.reshape(-1, num_channels)
     preds_np_accumulated = np.ascontiguousarray(preds_np_accumulated)
 
+    preds_softmax_np_accumulated = np.swapaxes(preds_softmax_np_accumulated, 1, 2)
+    preds_softmax_np_accumulated = np.swapaxes(preds_softmax_np_accumulated, 2, 3)
+    preds_softmax_np_accumulated = preds_softmax_np_accumulated.reshape(-1, num_channels)
+    preds_softmax_np_accumulated = np.ascontiguousarray(preds_softmax_np_accumulated)
+
     masks_np_accumulated = masks_np_accumulated.reshape(-1).astype(np.uint8)
 
-    assert preds_np_accumulated.shape[0] == masks_np_accumulated.shape[0]
+    assert preds_np_accumulated.shape[0] == masks_np_accumulated.shape[0] == preds_softmax_np_accumulated.shape[0]
 
-    noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
-                                               n_jobs=1)
+    if CL_type == 'both' or 'Qij':
+        noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_softmax_np_accumulated,
+                                                   prune_method='both',
+                                                   n_jobs=1)
+    elif CL_type == 'Cij':
+        noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
+                                                   n_jobs=1)
+    elif CL_type == 'intersection':
+        noise_qij = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_softmax_np_accumulated,
+                                                       prune_method='both', n_jobs=1)
+        noise_cij = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
+                                                       n_jobs=1)
+        noise = noise_qij & noise_cij
+    elif CL_type == 'union':
+        noise_qij = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_softmax_np_accumulated,
+                                                       prune_method='both', n_jobs=1)
+        noise_cij = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
+                                                       n_jobs=1)
+        noise = noise_qij | noise_cij
+
     confident_maps_np = noise.reshape(-1, height, width).astype(np.uint8) * 255
 
     for idx in range(len(filename_list)):
@@ -170,8 +200,10 @@ def TestConfidentMapCrossValidation(args, model_idx):
 
 
 def TestConfidentMapGeneration(args):
-    TestConfidentMapCrossValidation(args, 1)
-    TestConfidentMapCrossValidation(args, 2)
+    for model_idx in [1, 2]:
+        for CL_type in args.CL_type_list:
+            print('Testing sub model {} using CL method {}...'.format(model_idx, CL_type))
+            TestConfidentMapEachModelEachCLType(args, model_idx, CL_type)
 
     return
 

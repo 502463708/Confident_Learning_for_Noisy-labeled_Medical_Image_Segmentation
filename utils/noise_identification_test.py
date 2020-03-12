@@ -24,7 +24,7 @@ def ParseArguments():
                         help='Clean data root dir.')
     parser.add_argument('--noisy_data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.7-clavicle-10/all/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.3-clavicle-5/all/',
                         help='Noisy data root dir.')
     parser.add_argument('--label_class_name',
                         type=str,
@@ -32,7 +32,7 @@ def ParseArguments():
                         help='The label class name.')
     parser.add_argument('--CL_type',
                         type=str,
-                        default='prune_by_class',  # 'prune_by_class', 'prune_by_noise_rate', 'both'
+                        default='Qij',  # 'Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both'
                         help='The implement of Confident Learning.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -49,7 +49,7 @@ def ParseArguments():
 
 
 def TestNoiseIdentification(args):
-    assert args.CL_type in ['prune_by_class', 'prune_by_noise_rate', 'both']
+    assert args.CL_type in ['Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both']
 
     image_dir = os.path.join(args.clean_data_root_dir, args.dataset_type, 'images')
     clean_mask_dir = os.path.join(args.clean_data_root_dir, args.dataset_type, args.label_class_name)
@@ -57,7 +57,7 @@ def TestNoiseIdentification(args):
     confident_map_dir = os.path.join(args.noisy_data_root_dir, args.dataset_type,
                                      '{}-confident-maps'.format(args.label_class_name))
     if args.CL_type != 'both':
-        confident_map_dir = confident_map_dir.replace('confident-maps', 'confident-maps' + args.CL_type.replace('_', '-'))
+        confident_map_dir = confident_map_dir.replace('confident-maps', 'confident-maps-' + args.CL_type.replace('_', '-'))
 
     assert os.path.exists(clean_mask_dir)
     assert os.path.exists(noisy_mask_dir)
@@ -65,7 +65,9 @@ def TestNoiseIdentification(args):
     assert os.path.exists(args.dst_saving_dir)
 
     dst_saving_dir = os.path.join(args.dst_saving_dir, args.noisy_data_root_dir.split('/')[-3] + '-' +
-                                  args.dataset_type + '-' + args.label_class_name + args.CL_type.replace('_', '-'))
+                                  args.dataset_type + '-' + args.label_class_name)
+    if args.CL_type != 'both':
+        dst_saving_dir += '-' + args.CL_type.replace('_', '-')
     if os.path.exists(dst_saving_dir):
         shutil.rmtree(dst_saving_dir)
     os.mkdir(dst_saving_dir)
