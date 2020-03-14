@@ -24,15 +24,15 @@ def ParseArguments():
                         help='Clean data root dir.')
     parser.add_argument('--noisy_data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.3-clavicle-5/all/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.5-lung-20/all/',
                         help='Noisy data root dir.')
     parser.add_argument('--label_class_name',
                         type=str,
-                        default='clavicle',  # 'clavicle', 'heart', 'lung'
+                        default='lung',  # 'clavicle', 'heart', 'lung'
                         help='The label class name.')
     parser.add_argument('--CL_type',
                         type=str,
-                        default='Qij',  # 'Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both'
+                        default='intersection',  # 'Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both'
                         help='The implement of Confident Learning.')
     parser.add_argument('--dataset_type',
                         type=str,
@@ -137,6 +137,7 @@ def TestNoiseIdentification(args):
     logger.write_and_print('Mean recall rate = {:.2f}%'.format(mean_recall_rate * 100))
     logger.write_and_print('Mean precision rate = {:.2f}%'.format(mean_precision_rate * 100))
     logger.write_and_print('F1 score = {:.2f}%'.format(f1_score * 100))
+    print('{:.2f}%\t{:.2f}%\t{:.2f}%'.format(mean_recall_rate * 100, mean_precision_rate * 100, f1_score * 100))
 
     return
 

@@ -22,8 +22,8 @@ cfg = __C
 
 # general parameters
 __C.general = {}
-__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0.7-lung-30/all/'
-__C.general.saving_dir = '/data1/minqing/models/20200315_JRST_dataset_noisy_alpha-0.7_lung_30_all_segmentation_lung_slsr_1/'
+__C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0-beta-0/all/'
+__C.general.saving_dir = '/data1/minqing/models/20200316_JRST_dataset_noisy_alpha-0_beta_0_all_segmentation_lung_slsr_1/'
 __C.general.cuda_device_idx = '2'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters

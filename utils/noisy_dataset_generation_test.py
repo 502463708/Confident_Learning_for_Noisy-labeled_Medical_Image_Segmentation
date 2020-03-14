@@ -10,9 +10,9 @@ from utils.noisy_dataset_generation import add_noise
 def ParseArguments():
     parser = argparse.ArgumentParser()
 
-    alpha = 0.7  # 0.3 0.5 0.7
+    alpha = 0  # 0.3 0.5 0.7
     class_name = 'clavicle'  # 'clavicle', 'heart', 'lung'
-    beta = 10
+    beta = 0
 
     parser.add_argument('--src_data_root_dir',
                         type=str,
@@ -71,8 +71,11 @@ def TestNoisyDatasetGeneration(args):
             src_label_path = os.path.join(args.all_root_dir, 'training', label_class_name, noisy_filename)
             src_label_np = cv2.imread(src_label_path, cv2.IMREAD_GRAYSCALE)
 
-            dst_label_np, noise_type = add_noise(src_label_np, label_class_parameter[0], label_class_parameter[1])
-
+            if label_class_parameter[1] > 0:
+                dst_label_np, noise_type = add_noise(src_label_np, label_class_parameter[0], label_class_parameter[1])
+            else:
+                dst_label_np = src_label_np
+                noise_type = 'No noise'
             print(label_class_name, noisy_filename, noise_type)
 
             cv2.imwrite(src_label_path, dst_label_np)

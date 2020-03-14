@@ -30,19 +30,19 @@ def ParseArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_root_dir',
                         type=str,
-                        default='/data1/minqing/data/JRST/noisy-data-alpha-0.3-clavicle-5/',
+                        default='/data1/minqing/data/JRST/noisy-data-alpha-0-beta-0/',
                         help='Source data dir.')
     parser.add_argument('--model_sub_1_saving_dir',
                         type=str,
-                        default='/data1/minqing/models/20200312_JRST_dataset_noisy_alpha-0.3_clavicle_5_sub_1_segmentation_clavicle_CE_default/',
+                        default='/data1/minqing/models/20200316_JRST_dataset_noisy_alpha-0_beta_0_sub_1_segmentation_lung_CE_default/',
                         help='Model saved dir.')
     parser.add_argument('--label_class_name',
                         type=str,
-                        default='clavicle',  # 'clavicle', 'heart', 'lung'
+                        default='lung',  # 'clavicle', 'heart', 'lung'
                         help='The label class name.')
     parser.add_argument('--CL_type_list',
                         type=str,
-                        default=['Cij', 'Qij', 'intersection', 'union'],
+                        default=['both'],
                         # 'Cij', 'Qij', 'intersection', 'union', 'prune_by_class', 'prune_by_noise_rate', 'both'
                         help='The implement of Confident Learning.')
     parser.add_argument('--dataset_type',
@@ -132,9 +132,9 @@ def TestConfidentMapEachModelEachCLType(args, model_idx, CL_type):
         images_tensor = images_tensor.cuda()
 
         preds_tensor_softmax = net(images_tensor, use_softmax=True)
-        net = net.train()
-        preds_tensor = net(images_tensor, use_softmax=True)
-        net = net.eval()
+        # net = net.train()
+        preds_tensor = net(images_tensor, use_softmax=False)
+        # net = net.eval()
         preds_softmax_np = preds_tensor_softmax.cpu().detach().numpy()
         preds_np = preds_tensor.cpu().detach().numpy()
         masks_np = masks_tensor.cpu().numpy()
@@ -166,10 +166,9 @@ def TestConfidentMapEachModelEachCLType(args, model_idx, CL_type):
 
     assert preds_np_accumulated.shape[0] == masks_np_accumulated.shape[0] == preds_softmax_np_accumulated.shape[0]
 
-    if CL_type == 'both' or 'Qij':
+    if CL_type in ['both', 'Qij']:
         noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_softmax_np_accumulated,
-                                                   prune_method='both',
-                                                   n_jobs=1)
+                                                   prune_method='both', n_jobs=1)
     elif CL_type == 'Cij':
         noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
                                                    n_jobs=1)
@@ -185,6 +184,9 @@ def TestConfidentMapEachModelEachCLType(args, model_idx, CL_type):
         noise_cij = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_np_accumulated, prune_method='both',
                                                        n_jobs=1)
         noise = noise_qij | noise_cij
+    elif CL_type in ['prune_by_class', 'prune_by_noise_rate']:
+        noise = cleanlab.pruning.get_noise_indices(masks_np_accumulated, preds_softmax_np_accumulated, prune_method=CL_type,
+                                                   n_jobs=1)
 
     confident_maps_np = noise.reshape(-1, height, width).astype(np.uint8) * 255
 

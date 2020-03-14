@@ -24,7 +24,7 @@ def ParseArguments():
                         help='Source data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data1/minqing/models/20200314_JRST_dataset_noisy_alpha-0.7_lung_30_all_segmentation_lung_slsr_0.8',
+                        default='/data1/minqing/models/20200316_JRST_dataset_noisy_alpha-0_beta_0_all_segmentation_lung_slsr_1/',
                         help='Model saved dir.')
     parser.add_argument('--epoch_idx',
                         type=int,
@@ -80,7 +80,8 @@ def save_tensor_in_png(images_tensor, predictions_tensor, pixel_level_labels_ten
 
 
 def TestPixelLevelClassification(args):
-    visualization_saving_dir = os.path.join(args.model_saving_dir, 'results-{}-epoch-{}'.format(args.label_class_name, args.epoch_idx))
+    visualization_saving_dir = os.path.join(args.model_saving_dir, 'results-{}-epoch-{}'.format(
+        args.model_saving_dir.split('/')[-2].replace('_', '-'), args.epoch_idx))
 
     # remove existing dir which has the same name and create clean dir
     if os.path.exists(visualization_saving_dir):
@@ -136,7 +137,8 @@ def TestPixelLevelClassification(args):
         print('batch: {}, consuming time: {:.4f}s'.format(batch_idx, time() - start_time_for_batch))
         print('-------------------------------------------------------------------------------------------------------')
 
-        save_tensor_in_png(images_tensor, post_process_preds, pixel_level_labels_tensor, filenames, visualization_saving_dir)
+        save_tensor_in_png(images_tensor, post_process_preds, pixel_level_labels_tensor, filenames,
+                           visualization_saving_dir)
 
     return
 
