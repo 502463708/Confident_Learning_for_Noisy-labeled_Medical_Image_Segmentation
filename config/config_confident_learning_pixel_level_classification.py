@@ -23,15 +23,15 @@ cfg = __C
 # general parameters
 __C.general = {}
 __C.general.data_root_dir = '/data1/minqing/data/JRST/noisy-data-alpha-0-beta-0/all/'
-__C.general.saving_dir = '/data1/minqing/models/20200316_JRST_dataset_noisy_alpha-0_beta_0_all_segmentation_lung_slsr_1/'
+__C.general.saving_dir = '/data1/minqing/models/20200317_JRST_dataset_noisy_alpha-0_beta_0_all_segmentation_clavicle_CE_default/'
 __C.general.cuda_device_idx = '2'  # specify the index of the gpu devices to be occupied
 
 # dataset parameters
 __C.dataset = {}
-__C.dataset.class_name = 'lung'  # 'clavicle', 'heart', 'lung'
+__C.dataset.class_name = 'clavicle'  # 'clavicle', 'heart', 'lung'
 __C.dataset.image_channels = 1  # this is a single-channel image
 __C.dataset.cropping_size = [256, 256]  # [H, W] (pixel)
-__C.dataset.load_confident_map = True  # True: load confident maps only during training
+__C.dataset.load_confident_map = False  # True: load confident maps only during training
 __C.dataset.enable_random_sampling = True  # True: randomly sampling only during training
 
 # data augmentation parameters
@@ -42,14 +42,14 @@ __C.dataset.augmentation.enable_horizontal_flip = True
 
 # loss
 __C.loss = {}
-__C.loss.name = 'SLSRLoss'  # only 'CrossEntropyLoss', 'SLSRLoss' is supported now
-
+__C.loss.name = 'CrossEntropyLoss'  # only 'CrossEntropyLoss', 'SLSRLoss', 'WeightedCrossEntropyLoss' is supported now
+#
 __C.loss.slsrloss = {}
 __C.loss.slsrloss.epsilon = 1
 
 # net
 __C.net = {}
-__C.net.name = 'vnet2d_v3'  # name of the .py file implementing network architecture
+__C.net.name = 'vnet2d_v3'  # name of the .py file implementing network architecture: 'vnet2d_v3', 'pick_and_learn'
 __C.net.in_channels = 1
 __C.net.out_channels = 2
 

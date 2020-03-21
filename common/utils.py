@@ -98,20 +98,3 @@ def get_net_list(network, ckpt_dir, mc_epoch_indexes, logger):
         logger.write_and_print('Load ckpt: {0} for MC dropout...'.format(ckpt_path))
 
     return net_list
-
-
-def generate_uncertainty_maps(net_list, images_tensor):
-    accumulated_residues_tensor = None
-
-    for net in net_list:
-        _, prediction_residues_tensor = net(images_tensor)
-        if accumulated_residues_tensor is None:
-            accumulated_residues_tensor = prediction_residues_tensor
-        else:
-            accumulated_residues_tensor = torch.cat((accumulated_residues_tensor, prediction_residues_tensor), dim=1)
-
-    uncertainty_maps = accumulated_residues_tensor.var(dim=1)
-    uncertainty_maps_np = uncertainty_maps.cpu().detach().numpy()
-    uncertainty_maps_np = 1 - np.exp(-uncertainty_maps_np)
-
-    return uncertainty_maps_np

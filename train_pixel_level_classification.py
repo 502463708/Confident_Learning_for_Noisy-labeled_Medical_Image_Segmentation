@@ -12,6 +12,7 @@ from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
 from metrics.metrics_pixel_level_classification import MetricsPixelLevelClassification
 from logger.logger import Logger
 from loss.cross_entropy_loss import CrossEntropyLoss
+from loss.weighted_cross_entropy_loss import WeightedCrossEntropyLoss
 from loss.slsr_loss import SLSRLoss
 from torch.utils.data import DataLoader
 from time import time
@@ -61,13 +62,18 @@ def iterate_for_an_epoch(training, epoch_idx, data_loader, net, loss_func, metri
         images_tensor = images_tensor.cuda()
 
         # network forward
-        predictions_tensor = net(images_tensor)
+        if net.module.get_name() == 'VNet2d':
+            predictions_tensor = net(images_tensor)
+        elif net.module.get_name() == 'PLNet2d':
+            predictions_tensor, weights_tensor = net(images_tensor, pixel_level_labels_tensor)
 
         # calculate loss of this batch
         if loss_func.get_name() == 'CrossEntropyLoss':
             loss = loss_func(predictions_tensor, pixel_level_labels_tensor)
         elif loss_func.get_name() == 'SLSRLoss':
             loss = loss_func(predictions_tensor, pixel_level_labels_tensor, confident_maps_tensor)
+        elif loss_func.get_name() == 'WeightedCrossEntropyLoss':
+            loss = loss_func(predictions_tensor, pixel_level_labels_tensor, weights_tensor)
 
         loss_for_each_batch_list.append(loss.item())
 
@@ -182,7 +188,10 @@ if __name__ == '__main__':
         print('failed to import package: {}'.format('net.' + cfg.net.name))
     #
     # define the network
-    net = net_package.VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    if cfg.net.name in ['vnet2d_v3']:
+        net = net_package.VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    elif cfg.net.name in ['pick_and_learn']:
+        net = net_package.PLNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
 
     # check whether the ckpt dir is empty
     ckpt_file_list = os.listdir(ckpt_dir)
@@ -236,11 +245,13 @@ if __name__ == '__main__':
                                         shuffle=True, num_workers=cfg.train.num_threads)
 
     # define loss function
-    assert cfg.loss.name in ['CrossEntropyLoss', 'SLSRLoss']
+    assert cfg.loss.name in ['CrossEntropyLoss', 'SLSRLoss', 'WeightedCrossEntropyLoss']
     if cfg.loss.name == 'CrossEntropyLoss':
         loss_func = CrossEntropyLoss()
     elif cfg.loss.name == 'SLSRLoss':
         loss_func = SLSRLoss(cfg.loss.slsrloss.epsilon)
+    elif cfg.loss.name == 'WeightedCrossEntropyLoss':
+        loss_func = WeightedCrossEntropyLoss()
 
     # setup optimizer
     optimizer = torch.optim.Adam(net.parameters(), lr=cfg.lr_scheduler.lr)

@@ -208,6 +208,6 @@ class VNet2d(nn.Module):
 
         return out
 
-    def max_stride(self):
+    def get_name(self):
 
-        return 16
+        return 'VNet2d'

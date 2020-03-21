@@ -8,11 +8,12 @@ import torch.backends.cudnn as cudnn
 
 from config.config_confident_learning_pixel_level_classification import cfg
 from dataset.dataset_confident_learning_2d import ConfidentLearningDataset2d
+from net.pick_and_learn import PLNet2d
 from net.vnet2d_v3 import VNet2d
 from torch.utils.data import DataLoader
 from time import time
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 cudnn.benchmark = True
 
 
@@ -24,11 +25,15 @@ def ParseArguments():
                         help='Source data dir.')
     parser.add_argument('--model_saving_dir',
                         type=str,
-                        default='/data1/minqing/models/20200316_JRST_dataset_noisy_alpha-0_beta_0_all_segmentation_lung_slsr_1/',
+                        default='/data1/minqing/models/20200317_JRST_dataset_noisy_alpha-0.3_lung_30_all_segmentation_lung_pick_and_learn/',
                         help='Model saved dir.')
+    parser.add_argument('--network_filename',
+                        type=str,
+                        default='pick_and_learn',
+                        help='The name of the file containing the implemented network.')
     parser.add_argument('--epoch_idx',
                         type=int,
-                        default=-1,
+                        default=200,
                         help='The epoch index of ckpt, set -1 to choose the best ckpt on validation set.')
     parser.add_argument('--label_class_name',
                         type=str,
@@ -89,7 +94,11 @@ def TestPixelLevelClassification(args):
     os.mkdir(visualization_saving_dir)
 
     # define the network
-    net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    assert args.network_filename in ['vnet3d_v3', 'pick_and_learn']
+    if args.network_filename in ['vnet3d_v3']:
+        net = VNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
+    elif args.network_filename in ['pick_and_learn']:
+        net = PLNet2d(num_in_channels=cfg.net.in_channels, num_out_channels=cfg.net.out_channels)
 
     # load the specified ckpt
     ckpt_dir = os.path.join(args.model_saving_dir, 'ckpt')
@@ -131,7 +140,11 @@ def TestPixelLevelClassification(args):
         images_tensor = images_tensor.cuda()
 
         # network forward
-        predictions_tensor = net(images_tensor, use_softmax=True)
+        if net.module.get_name() == 'VNet2d':
+            predictions_tensor = net(images_tensor)
+        elif net.module.get_name() == 'PLNet2d':
+            predictions_tensor, _ = net(images_tensor, pixel_level_labels_tensor)
+
         _, post_process_preds = torch.max(predictions_tensor, dim=1)
 
         print('batch: {}, consuming time: {:.4f}s'.format(batch_idx, time() - start_time_for_batch))
