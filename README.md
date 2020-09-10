@@ -6,14 +6,14 @@ Minqing Zhang, Jiantao Gao, Zhen Lyu, Weibing Zhao, Qin Wang, Weizhen Ding, Shen
 
 ![Pipeline](https://www.overleaf.com/project/5e61e23151ea080001abc1af/file/5e71af21516bf00001fd32b3)  
 
-## Environment
+## Environments
 All of the experiments reported in the paper were conducted under the following configuration. Other configurations might not be guaranteed feasible. <br>
 
 Operating System: Ubuntu 16.04.5 <br>
 CUDA 10.0.130 <br>
 Deep Learning Computing Lib: Pytorch 1.2.0 <br>
 
-## The organization of this project
+## Organization
 This project comprises of 9 folders and 2 scripts, and each of which is going to be described in the following <br>
 /common    : general interfaces like model saving <br>
 /config    : configurations related to training models <br>
