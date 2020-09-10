@@ -15,6 +15,7 @@ Deep Learning Computing Lib: Pytorch 1.2.0 <br>
 
 ## Organization
 This project comprises of 9 folders and 2 scripts, and each of which is going to be described in the following <br>
+<br>
 /common    : general interfaces like model saving <br>
 /config    : configurations related to training models <br>
 /dataset   : dataset implement according to pytorch <br>
