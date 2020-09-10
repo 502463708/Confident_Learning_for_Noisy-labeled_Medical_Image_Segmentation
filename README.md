@@ -9,9 +9,9 @@ Minqing Zhang, Jiantao Gao, Zhen Lyu, Weibing Zhao, Qin Wang, Weizhen Ding, Shen
 ## Environments
 All of the experiments reported in the paper were conducted under the following configuration. Other configurations might not be guaranteed feasible. <br>
 
-Operating System: Ubuntu 16.04.5 <br>
+Ubuntu 16.04.5 <br>
 CUDA 10.0.130 <br>
-Deep Learning Computing Lib: Pytorch 1.2.0 <br>
+Pytorch 1.2.0 <br>
 
 ## Organization
 This project comprises of 10 folders and 2 scripts, and each of which is going to be described in the following <br>
