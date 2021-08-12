@@ -4,7 +4,7 @@ This repository is for 2D Noisy-labeled Medical Image Segmentation with Confiden
 
 Minqing Zhang, Jiantao Gao, Zhen Lyu, Weibing Zhao, Qin Wang, Weizhen Ding, Sheng Wang, Zhen Li* and Shuguang Cui, "Characterizing Label Errors: Confident Learning for Noisy-labeled Image Segmentation", MICCAI 2020. [Paper](https://link.springer.com/chapter/10.1007/978-3-030-59710-8_70)  
 
-You can consider citing this paper if it offered help in your work.
+Please consider citing this paper if it offered help in your work.
 
 Zhang M, Gao J, Lyu Z, et al. Characterizing Label Errors: Confident Learning for Noisy-Labeled Image Segmentation[C]//International Conference on Medical Image Computing and Computer-Assisted Intervention. Springer, Cham, 2020: 721-730.
 
